@@ -447,6 +447,52 @@ def make_plants_eia860m(read_eia860,write_eia860,use_monthly,wind_configs,solar_
         pgi_dups = nunique_eia860m[nunique_eia860m['plant_code_unique']>1].index.get_level_values('plant_gen_id').drop_duplicates().tolist()
         if len(pgi_dups) > 0:
             print('there are duplicate plant_gen_ids -- check ',pgi_dups)
+
+        # spot fixing remaining plants. process to do this:
+        # ci_ids = eia860m_long[eia860m_long['balancing authority code']=='CI']['plant id'].drop_duplicates().tolist()
+        # check to see if it's a one to one match for updating the ba
+        # eia860m_long[eia860m_long['plant id'].isin(ci_ids)][['plant id','balancing authority code','resource']].drop_duplicates().pivot(index='plant id',columns='balancing authority code',values='resource')
+        # if it is, then we can do the easy approach:
+        # change balancing authority code 'NY' to 'NYIS'
+        # eia860m_long.loc[eia860m_long['balancing authority code']=='NY','balancing authority code'] = 'NYIS'
+        # change balancing authority code 'CA' to 'CISO'
+        eia860m.loc[eia860m['balancing authority code']=='CA','balancing authority code'] = 'CISO'
+        # change balancing authority code 'GRIS' to 'GRID'
+        eia860m.loc[eia860m['balancing authority code']=='GRIS','balancing authority code'] = 'GRID'
+        # change balancing authority code 'PJ' to 'PJM'
+        eia860m.loc[eia860m['balancing authority code']=='PJ','balancing authority code'] = 'PJM'
+        # change balancing authority code 'SW' to 'SWPP'
+        eia860m.loc[eia860m['balancing authority code']=='SW','balancing authority code'] = 'SWPP'
+        # change balancing authority code 'CP' to 'CPLE' for plant id 61527 for years [2017,2018]
+        eia860m.loc[(eia860m['balancing authority code']=='CP')&
+                        (eia860m['plant id']==61527)&
+                        (eia860m['year'].isin([2017,2018])),'balancing authority code'] = 'CPLE'
+        # change balancing authority code 'CP' to 'CPLE' for plant ids [61512,61520,61525,61528,61536]
+        eia860m.loc[(eia860m['balancing authority code']=='CP')&
+                        (eia860m['plant id'].isin([61512,61520,61525,61528,61536])),'balancing authority code'] = 'CPLE'
+        # change balancing authority code 'IS' to 'ISNE' for plant id [61764,61765] for years [2018]
+        eia860m.loc[(eia860m['balancing authority code']=='IS')&
+                        (eia860m['plant id'].isin([61764,61765]))&
+                        (eia860m['year']==2018),'balancing authority code'] = 'ISNE'
+        # change balancing authority code 'IS' to 'ISNE' for plant ids [61518,61537,61538,61539,61541,61622,61629,61769,61770,61771,61774]
+        eia860m.loc[(eia860m['balancing authority code']=='IS')&
+                        (eia860m['plant id'].isin([61518,61537,61538,61539,61541,61622,61629,61769,61770,61771,61774])),
+                        'balancing authority code'] = 'ISNE'
+        # change balancing authority code 'DU' to 'DUK'
+        eia860m.loc[eia860m['balancing authority code']=='DU','balancing authority code'] = 'DUK'
+        # change balancing authority code 'ER' to 'ERCO'
+        eia860m.loc[eia860m['balancing authority code']=='ER','balancing authority code'] = 'ERCO'
+        # change balancing authority code 'MI' to 'MISO'
+        eia860m.loc[eia860m['balancing authority code']=='MI','balancing authority code'] = 'MISO'
+        # change balancing authority code 'NY' to 'NYIS'
+        eia860m.loc[eia860m['balancing authority code']=='NY','balancing authority code'] = 'NYIS'
+        # change balancing authority code 'CI' to 'CISO'
+        eia860m.loc[eia860m['balancing authority code']=='CI','balancing authority code'] = 'CISO'
+        # change balancing authority code 'PA' to 'PACW'
+        eia860m.loc[eia860m['balancing authority code']=='PA','balancing authority code'] = 'PACW'
+        # change balancing authority code 'PS' to 'PSCO'
+        eia860m.loc[eia860m['balancing authority code']=='PS','balancing authority code'] = 'PSCO'
+
     else:
         eia860m = pd.read_csv(datadir+r'/EIA860/all_years_860m.csv')
 

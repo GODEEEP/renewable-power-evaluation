@@ -10,7 +10,14 @@ import os
 
 #%%
 # plot the infrastructure over time
-def plot_infrastructure_over_time(wlist,slist,eia860m_long,all_power_hourly,datadir,plot_capnormdiff=False,savef=False):
+def plot_infrastructure_over_time(wlist,slist,eia860m_long,all_power_hourly,outdir,plot_capnormdiff=False,savef=False):
+    tabledir = outdir+r'/tables'
+    if not os.path.exists(tabledir):
+        os.makedirs(tabledir)
+    if savef:
+        plotdir = outdir+r'/plots'
+        if not os.path.exists(plotdir):
+            os.makedirs(plotdir)
     for this_list,res in zip([wlist,slist],['wind','solar']):
         for this_ba in this_list:
             ba_hourly_power = all_power_hourly[res][this_ba][['GODEEEP-'+res,'scada']]
@@ -53,7 +60,7 @@ def plot_infrastructure_over_time(wlist,slist,eia860m_long,all_power_hourly,data
             plt.ylabel('MW',fontsize=16)
             plt.tight_layout()
             if savef:
-                plt.savefig(datadir+r'/plots/'+this_ba+'_'+res+'_infrastructure_over_time.png')
+                plt.savefig(plotdir+r'/'+this_ba+'_'+res+'_infrastructure_over_time.png')
             plt.show()
             plt.close(fig)
 
@@ -70,7 +77,7 @@ def plot_infrastructure_over_time(wlist,slist,eia860m_long,all_power_hourly,data
                 ax.grid(which='major', alpha=0.8)
                 plt.title(this_ba+' '+res.capitalize()+' Capacity Normalized Monthly Max Production Difference')
                 if savef:
-                    plt.savefig(datadir+r'/plots/'+this_ba+'_'+res+'_cap_norm_diff.png')
+                    plt.savefig(plotdir+r'/'+this_ba+'_'+res+'_cap_norm_diff.png')
                 plt.show()
                 plt.close(fig)
     return
@@ -92,7 +99,7 @@ def setup_timeseries(df,compute_cf,capacity,cols):
     df = df[cols]
     return df
                 # dd,freq,res,comp,datadir,thesecols,BA,'balevel_'+sname,savef
-def plot_whiskers(dd,freq,res,comp,datadir,thesecols,region,agg,savef,showf):
+def plot_whiskers(dd,freq,res,comp,plotdir,thesecols,region,agg,savef,showf):
     dd = dd[dd['nameplate capacity (mw)']>0]
     # print(dd.columns)
     # print(comp)
@@ -153,7 +160,7 @@ def plot_whiskers(dd,freq,res,comp,datadir,thesecols,region,agg,savef,showf):
     handles, _ = ax.get_legend_handles_labels()
     ax.legend(handles=handles, labels=bias_label)
     if savef:
-        plt.savefig(datadir+r'/'+region+'_'+res+'_'+agg+'.png')
+        plt.savefig(plotdir+r'/'+region+'_'+res+'_'+agg+'.png')
     if showf:
         plt.show()
     plt.close(fig)
@@ -167,7 +174,14 @@ fall= [9,10,11]
 seasons = [winter,spring,summer,fall]
 season_names = ['DJF','MAM','JJA','SON']
                     # all_power_hourly,eia860m_long,freq,res,these_bas,outdir,compute_cf,comp,mask,agg,savef=False
-def plot_grouped_box(all_power_hourly,eia860m_long,freq,res,balist,datadir,compute_cf,comp,mask,aggregation,season_disagg,savef=False,showf=False):
+def plot_grouped_box(all_power_hourly,eia860m_long,freq,res,balist,outdir,compute_cf,comp,mask,aggregation,season_disagg,savef=False,showf=False):
+    tabledir = outdir+r'/tables'
+    if not os.path.exists(tabledir):
+        os.makedirs(tabledir)
+    if savef:
+        plotdir = outdir+r'/plots'
+        if not os.path.exists(plotdir):
+            os.makedirs(plotdir)
     if aggregation == 'by BA':
         for BA in balist:
             dd = all_power_hourly[res][BA].copy(deep=True)[['GODEEEP-'+res]+comp]
@@ -180,11 +194,11 @@ def plot_grouped_box(all_power_hourly,eia860m_long,freq,res,balist,datadir,compu
             if season_disagg == True:
                 for season,sname in zip(seasons,season_names):
                     dd_plot = dd[dd.index.month.isin(season)]
-                    plot_whiskers(dd_plot,freq,res,comp,datadir,thesecols,BA+' '+sname,'balevel_'+sname,savef,showf)
+                    plot_whiskers(dd_plot,freq,res,comp,plotdir,thesecols,BA+' '+sname,'balevel_'+sname,savef,showf)
             else:
-                plot_whiskers(dd,freq,res,comp,datadir,thesecols,BA,'balevel',savef,showf)
+                plot_whiskers(dd,freq,res,comp,plotdir,thesecols,BA,'balevel',savef,showf)
     elif aggregation == 'by NERC region':
-        for bas_in_nerc,nerc_name in zip([wecc,eic,erco],['wecc','eic','erco']):
+        for bas_in_nerc,nerc_name in zip([wecc,eic,erco],nerc_zones):
             plot_bas = [i for i in bas_in_nerc if i in balist]
             nerc_wide = pd.DataFrame(columns=['GODEEEP-'+res]+comp+['nameplate capacity (mw)'],
                                     index=pd.date_range(start='2007-01-01',end='2021-01-01',inclusive='left',freq='1H',tz='UTC').values.astype('datetime64[s]'))
@@ -200,12 +214,19 @@ def plot_grouped_box(all_power_hourly,eia860m_long,freq,res,balist,datadir,compu
                 # 3. place the 'dd' in nerc_eachba
                 nerc_eachba[:len(dd),:,ba_idx] = dd
             nerc_wide.iloc[:,:] = nerc_eachba.sum(axis=2)
-            dd = plot_whiskers(nerc_wide,freq,res,comp,datadir,thesecols,nerc_name,'nerclevel',savef,showf)
+            dd = plot_whiskers(nerc_wide,freq,res,comp,plotdir,thesecols,nerc_name,'nerclevel',savef,showf)
     return
 
 
                     # all_power_hourly,eia860m_long,freq,res,these_bas,outdir,compute_cf,comp,mask,agg,savef=True
-def plot_grouped_bars(all_power_hourly,eia860m_long,freq,res,balist,datadir,compute_cf,comparison_datasets,mask,agg,s_agg,savef=False,showf=False):
+def plot_grouped_bars(all_power_hourly,eia860m_long,freq,res,balist,outdir,compute_cf,comparison_datasets,mask,agg,s_agg,savef=False,showf=False):
+    tabledir = outdir+r'/tables'
+    if not os.path.exists(tabledir):
+        os.makedirs(tabledir)
+    if savef:
+        plotdir = outdir+r'/plots'
+        if not os.path.exists(plotdir):
+            os.makedirs(plotdir)
     if freq=='Y':
         idx = list(range(2007,2021))+['mean']
     stats_df = pd.DataFrame(columns=pd.MultiIndex.from_product([balist,comparison_datasets]),index=idx,dtype=pd.Int64Dtype())
@@ -289,14 +310,11 @@ def plot_grouped_bars(all_power_hourly,eia860m_long,freq,res,balist,datadir,comp
                     alpha=0.5)
         plt.tight_layout()
         if savef:
-            plt.savefig(datadir+BA+'_'+freq+'_'+res+'_'+cf_fig+'.png')
+            plt.savefig(plotdir+r'/'+BA+'_'+freq+'_'+res+'_'+cf_fig+'.png')
         if showf:
             plt.show()
         plt.close(fig)
-    stats_dir = datadir+r'/../../tables/infrastructure_buildout'
-    if not os.path.exists(stats_dir):
-        os.makedirs(stats_dir)
-    stats_df.to_csv(stats_dir+r'/infrastructure_'+summarize+'_'+freq+'_'+res+'_'+cf_fig+'.csv')
+    stats_df.to_csv(tabledir+r'/infrastructure_'+summarize+'_'+freq+'_'+res+'_'+cf_fig+'.csv')
     return
 
 def standard_scale(x):
@@ -310,13 +328,20 @@ erco = ['ERCO']
 nerc_zones = ['wecc','eic','erco']
 
 def plot_correlation(all_power_hourly,eia860m_long,freq,res,these_bas,outdir,compute_cf,comparison_datasets,mask_bad_data,agg,s_agg,savef=False,showf=False):
+    tabledir = outdir+r'/tables'
+    if not os.path.exists(tabledir):
+        os.makedirs(tabledir)
+    if savef:
+        plotdir = outdir+r'/plots'
+        if not os.path.exists(plotdir):
+            os.makedirs(plotdir)
     if agg == 'by BA':
         mbd = ''
         a_n = 'byba'
         stats_df = pd.DataFrame(columns=['r2'],index=these_bas)
         for BA in these_bas:
             fig, ax = plt.subplots(figsize=(6, 6))
-            print(BA, res, comparison_datasets)
+            # print(BA, res, comparison_datasets)
             dd = all_power_hourly[res][BA].copy(deep=True)[['GODEEEP-'+res]+comparison_datasets]
             thesecols = dd.columns.tolist()
             capacity = eia860m_long[(eia860m_long['balancing authority code']==BA)&(eia860m_long['resource']==res)].groupby(['year','month'])['nameplate capacity (mw)'].sum().reset_index()
@@ -328,37 +353,34 @@ def plot_correlation(all_power_hourly,eia860m_long,freq,res,these_bas,outdir,com
             dd_cf = dd[thesecols].div(dd['nameplate capacity (mw)'],axis=0)
             dd_cf = dd_cf.dropna(axis=0)
             plt.scatter(dd_cf['GODEEEP-'+res],dd_cf[comparison_datasets[0]],alpha=0.6,c='grey')#,label=BA)
-            plt.xlabel('GODEEEP-'+res)
-            plt.ylabel(comparison_datasets[0])
-            plt.title('Hourly capacity factor for '+res+' in '+BA)
+            plt.xlabel('GODEEEP-'+res.capitalize())
+            plt.ylabel(comparison_datasets[0].upper())
+            plt.title(BA+' '+res.capitalize()+' Hourly Variability')
             plt.show()
             # average r2 across all days of hourly cf
             # print(dd_cf.head())
-            daily_cf = []
+            daily_r = []
             for g in list(dd_cf.groupby([dd_cf.index.year,dd_cf.index.month,dd_cf.index.day])):
                 if ~(g[1].sum() == 0).any():
-                    daily_cf.append(calc_r2(g[1],'',res,comparison_datasets[0])[0])
+                    daily_r.append(calc_r(g[1],'',res,comparison_datasets[0])[0])
             # return(dd_cf)
-            print(BA,': ',np.average(np.array(daily_cf)))
-            stats_df.loc[BA] = np.average(np.array(daily_cf))
-            plt.hist(np.array(daily_cf),
+            print('Daily Correlation Coef in '+BA+': ',np.average(np.array(daily_r)))
+            stats_df.loc[BA] = np.average(np.array(daily_r))
+            plt.hist(np.array(daily_r),
                     density=True,bins=60,alpha=.9)
-            plt.title(BA+' '+res.capitalize()+' Daily $R^{2}$')
+            plt.title(BA+' '+res.capitalize()+' Daily $r$')
             plt.show()
     elif agg == 'by NERC region':
         a_n = 'byregion'
         stats_df = pd.DataFrame(columns=pd.MultiIndex.from_product([nerc_zones,['GODEEEP-'+res]+comparison_datasets]),index=list(range(2007,2021)))
         # subset these_bas by interconnect
-        for bas_in_nerc,nerc_name in zip([wecc,eic,erco],['wecc','eic','erco']):
-            # print(nerc_name)
+        for bas_in_nerc,nerc_name in zip([wecc,eic,erco],nerc_zones):
             fig, ax = plt.subplots(figsize=(6, 6))
             plot_bas = [i for i in bas_in_nerc if i in these_bas]
             nerc_wide = pd.DataFrame(columns=['GODEEEP-'+res]+comparison_datasets+['nameplate capacity (mw)'],
                                     index=pd.date_range(start='2007-01-01',end='2021-01-01',inclusive='left',freq='1H',tz='UTC').values.astype('datetime64[s]'))
             nerc_eachba = np.zeros(list(nerc_wide.shape)+[len(plot_bas)]) 
-            # nerc_eachba = np.zeros([122640,3,len(plot_bas)])
             for BA,ba_idx in zip(plot_bas,range(len(plot_bas))):
-                # fig, ax = plt.subplots(figsize=(6, 6))
                 dd = all_power_hourly[res][BA].copy(deep=True)[['GODEEEP-'+res]+comparison_datasets]
                 thesecols = dd.columns.tolist()
                 capacity = eia860m_long[(eia860m_long['balancing authority code']==BA)&(eia860m_long['resource']==res)].groupby(['year','month'])['nameplate capacity (mw)'].sum().reset_index()
@@ -375,12 +397,6 @@ def plot_correlation(all_power_hourly,eia860m_long,freq,res,these_bas,outdir,com
                     # 1. find the years for this BA -- create a new frame from dd/don't overwrite dd
                     low_cf_yr_idx_annual = annual_cf.loc[(annual_cf<0.05).any(axis=1)].index.year
                     annual_cf = annual_cf.loc[(annual_cf[thesecols]>=0.05).any(axis=1)]
-                    # return annual_cf
-                    # print(low_cf_yr_idx)
-                    # dd.loc[dd.index.year.isin(low_cf_yr_idx),thesecols] = 0
-                    # that didn't work
-                    # try:
-                    # 1. set as zero all rows where a zero production exists in thesecols when summed to monthly production
                     monthly_cf = dd.groupby([dd.index.year,dd.index.month]).sum().fillna(0)
                     monthly_cf[thesecols] = monthly_cf[thesecols].div(monthly_cf['nameplate capacity (mw)'],axis=0)
                     monthly_cf = monthly_cf.fillna(0)
@@ -393,44 +409,34 @@ def plot_correlation(all_power_hourly,eia860m_long,freq,res,these_bas,outdir,com
                 # 3. place the 'dd' in nerc_eachba
                 nerc_eachba[:len(dd),:,ba_idx] = dd
                 if (res == 'solar') & (nerc_name=='wecc'):
-                    r2,slope,intercept = calc_r2(annual_cf[thesecols].astype(float),'',res,comparison_datasets[0])
-                    # if slope < 0:
-                        # print(BA)
-                        # print(r2,slope,intercept)
-                        # print(annual_cf)  
+                    corr_coef,slope,intercept = calc_r(annual_cf[thesecols].astype(float),'',res,comparison_datasets[0])
                 plt.scatter(annual_cf['GODEEEP-'+res],annual_cf[comparison_datasets[0]],alpha=0.6,c='grey')#,label=BA)
             nerc_wide.iloc[:,:] = nerc_eachba.sum(axis=2)
             nerc_wide = nerc_wide.resample(freq).sum()
             nerc_wide = nerc_wide[nerc_wide['nameplate capacity (mw)']>0]
             nerc_wide[thesecols] = nerc_wide[thesecols].div(nerc_wide['nameplate capacity (mw)'],axis=0)
             nerc_wide = nerc_wide.loc[(nerc_wide[thesecols]>=0.05).any(axis=1)]
-            # print(nerc_wide)
             nerc_wide.index = nerc_wide.index.year
             stats_df[nerc_name] = nerc_wide[thesecols].round(2)
             plt.scatter(nerc_wide['GODEEEP-'+res],nerc_wide[comparison_datasets[0]])
-            r2,slope,intercept = calc_r2(nerc_wide[thesecols].astype(float),'',res,comparison_datasets[0])
+            corr_coef,slope,intercept = calc_r(nerc_wide[thesecols].astype(float),'',res,comparison_datasets[0])
             xax = np.linspace(0, 1.0, num=100)
-            plt.plot(xax, intercept + slope*xax, 'r', label='r$^2$ = '+str(r2.round(2)))
+            plt.plot(xax, intercept + slope*xax, 'r', label='$r$ = '+str(corr_coef.round(2)))
             plt.legend()
-            ax.set_xlabel('GODEEEP-'+res+' Average Annual Capacity Factor',fontsize=12)
+            ax.set_xlabel('GODEEEP-'+res.capitalize()+' Average Annual Capacity Factor',fontsize=12)
             ax.set_xlim([0,0.6])
-            ax.set_ylabel(comparison_datasets[0]+' Average Annual Capacity Factor',fontsize=12)
+            ax.set_ylabel(comparison_datasets[0].upper()+' Average Annual Capacity Factor',fontsize=12)
             ax.set_ylim([0,0.6])
-            ax.set_title(nerc_name+' '+res.capitalize()+' Inter-Annual Variability',fontsize=18)
+            ax.set_title(nerc_name.upper()+' '+res.capitalize()+' Inter-Annual Variability',fontsize=18)
             ax.grid(which='minor', alpha=0.2)
             ax.grid(which='major', alpha=0.8)    
             plt.tight_layout()
             if savef:
-                plt.savefig(outdir+r'/'+nerc_name+'_'+res+'_'+'correlation'+mbd+'.png')
+                plt.savefig(plotdir+r'/'+nerc_name+'_'+res+'_'+'correlation'+mbd+'.png')
             if showf:
                 plt.show()
             plt.close(fig) 
-        # print(stats_df)
-    stats_dir = outdir+r'/../../tables/interannual_variability'
-    if not os.path.exists(stats_dir):
-        os.makedirs(stats_dir)
-    stats_df.to_csv(stats_dir+r'/cf_'+res+mbd+'_'+a_n+'.csv')
-    # print(stats_df) 
+    stats_df.to_csv(tabledir+r'/cf_'+res+mbd+'_'+a_n+'.csv')
     return
 
 
@@ -473,35 +479,22 @@ def reject_outliers(data, m=3.5):
     return data[abs(data - np.mean(data)) <= m * np.std(data)]
 
 # In[ ]:
-def get_emd_scada(all_power_hourly,eia860m_long,balist,res,dates,comp,normalize=False,robust=True):
+def get_emd_scada(all_power_hourly,eia860m_long,balist,res,dates,comp,tabledir,normalize=False,robust=True):
     yr,mo,da = dates[0],dates[1],dates[2]
     emd_scada = []
     emd_scada_robust = []
     for bb in balist:
-        # print(bb,res)
         dd = all_power_hourly[res][bb].copy(deep=True)
-        # thesecols = dd.columns.tolist()
-        # if normalize:
-        #     capacity = eia860m_long[(eia860m_long['balancing authority code']==bb)&(eia860m_long['resource']==res)].groupby(['year','month'])['nameplate capacity (mw)'].sum().reset_index()
-        #     capacity['year-mo'] = capacity[['year','month']].astype(str).agg('-'.join,axis=1)
-        #     dd = dd.merge(capacity,how='left',left_on=[dd.index.year,dd.index.month],right_on=['year','month']).set_index(dd.index)
-        #     dd = dd[thesecols+['nameplate capacity (mw)']]
-        #     dd = dd.dropna()
-        #     dd = dd[(dd.index.year>2006)&(dd.index.year<2021)]#.fillna(0)
-        #     # hourly cf
-        #     dd = dd[thesecols].div(dd['nameplate capacity (mw)'],axis=0)
         df_emd = dd.loc[(dd.index.year.isin(yr))&(dd.index.month.isin(mo))&(dd.index.day.isin(da)),['GODEEEP-'+res,'scada']]
         if df_emd.isnull().values.any():
-            # print('na?')
             df_emd = df_emd.dropna()
-        # return df_emd
         idx =  pd.MultiIndex.from_arrays([df_emd.index.time, df_emd.index.floor('D')])
         pt1 = df_emd.set_index(idx)['GODEEEP-'+res].unstack()
         pt2 = df_emd.set_index(idx)[comp].unstack()
         pt1 = pt1.dropna(axis='columns')
         pt2 = pt2.dropna(axis='columns')
-        pt1.to_csv(r'/Users/camp426/Library/CloudStorage/OneDrive-PNNL/Documents/PNNL/Data/GODEEEP/tables/earth_mover_dist/emd_gd_'+res+'_'+bb+'.csv')
-        pt2.to_csv(r'/Users/camp426/Library/CloudStorage/OneDrive-PNNL/Documents/PNNL/Data/GODEEEP/tables/earth_mover_dist/emd_sc_'+res+'_'+bb+'.csv')
+        pt1.to_csv(tabledir+r'/emd_gd_'+res+'_'+bb+'.csv')
+        pt2.to_csv(tabledir+r'/emd_sc_'+res+'_'+bb+'.csv')
         emd = calc_emd(pt1,pt2)[2]
         if normalize:
             capacity = eia860m_long[(eia860m_long['balancing authority code']==bb)&(eia860m_long['resource']==res)].groupby(['year','month'])['nameplate capacity (mw)'].sum().reset_index()
@@ -521,13 +514,20 @@ def get_emd_scada(all_power_hourly,eia860m_long,balist,res,dates,comp,normalize=
 
 
 def plot_emd(all_power_hourly,eia860m_long,dates,res,these_bas,outdir,compute_cf,comparison_datasets,mask,agg,s_agg,savef=False,showf=False):
-    emd = dict(zip(these_bas,get_emd_scada(all_power_hourly,eia860m_long,these_bas,res,dates,comparison_datasets[0],normalize=compute_cf,robust=True)))
+    tabledir = outdir+r'/tables'
+    if not os.path.exists(tabledir):
+        os.makedirs(tabledir)
+    if savef:
+        plotdir = outdir+r'/plots'
+        if not os.path.exists(plotdir):
+            os.makedirs(plotdir)
+    emd = dict(zip(these_bas,get_emd_scada(all_power_hourly,eia860m_long,these_bas,res,dates,comparison_datasets[0],tabledir,normalize=compute_cf,robust=True)))
     # return get_emd_scada(all_power_hourly,eia860m_long,these_bas,res,dates,comparison_datasets[0],normalize=compute_cf,robust=True)
     fig, ax1 = plt.subplots(figsize=(10, 6))
     fig.subplots_adjust(left=0.075, right=0.95, top=0.9, bottom=0.25)
     labels,data = [*zip(*emd.items())]
     for l,d in zip(labels,data):
-        pd.DataFrame(d).to_csv(outdir+r'/../../tables/earth_mover_dist/'+l+'_'+res+'_raw_daily_emd.csv')
+        pd.DataFrame(d).to_csv(tabledir+r'/'+l+'_'+res+'_raw_daily_emd.csv')
     ax1.boxplot(data,notch=False, sym='+', vert=True, whis=1.5)
     plt.yscale('log')
     plt.xticks(range(1, len(labels) + 1), labels)
@@ -548,22 +548,17 @@ def plot_emd(all_power_hourly,eia860m_long,dates,res,these_bas,outdir,compute_cf
     ax1.tick_params(axis='y',labelsize=14)
     plt.tight_layout()
     if savef:
-        plt.savefig(outdir+r'emd_'+res+'_'+filen+'.png')
-    # plt.savefig(datadir+r'/plots/emd_'+res+'_12hrshift.png')
-    # plt.savefig(datadir+r'/plots/emd_'+res+'_robust.png')
+        plt.savefig(plotdir+r'/emd_'+res+'_'+filen+'.png')
     if showf:
         plt.show()
     plt.close()
-    stats_dir = outdir+r'/../../tables/earth_mover_dist'
-    if not os.path.exists(stats_dir):
-        os.makedirs(stats_dir)
     emd_means = pd.DataFrame(index=these_bas,columns=[res.capitalize()])
     emd_medians = pd.DataFrame(index=these_bas,columns=[res.capitalize()])
     for e in emd.keys():
         emd_means.loc[e,res.capitalize()] = np.mean(emd[e]).round(3)
         emd_medians.loc[e,res.capitalize()] = np.median(emd[e]).round(3)
-    emd_means.to_csv(stats_dir+r'/emd_means_robust_'+filen+'_'+res+'.csv')
-    emd_medians.to_csv(stats_dir+r'/emd_medians_robust_'+filen+'_'+res+'.csv')
+    emd_means.to_csv(tabledir+r'/emd_means_robust_'+filen+'_'+res+'.csv')
+    emd_medians.to_csv(tabledir+r'/emd_medians_robust_'+filen+'_'+res+'.csv')
     return
 
 #%%
@@ -572,13 +567,10 @@ def plot_emd(all_power_hourly,eia860m_long,dates,res,these_bas,outdir,compute_cf
 def calc_rmse(thisgroup,_,comp,res):
     return math.sqrt(np.square(np.subtract(thisgroup['GODEEEP-'+res],thisgroup[comp[0]])).mean())
 
-def calc_r2(g,_,res,comp):
-    # g = g.dropna(axis=0)
-    # print(g,comp)
-    # only compare with eia923
-    # or at minimum, this expects comp to be one value, not multiple
+def calc_r(g,_,res,comp):
     result = stats.linregress(g['GODEEEP-'+res],g[comp])
-    return result.rvalue**2,result.slope,result.intercept
+    return result.rvalue,result.slope,result.intercept
+
 
 def calc_diff(thisgroup,summarize,comp,res):
     # average pct diff across the frequency interval

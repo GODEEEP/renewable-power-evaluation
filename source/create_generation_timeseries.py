@@ -137,7 +137,7 @@ def create_balevel_generation(all_plant_gen,res,balist,gd_df,eia930_df,eia923_df
         else:
             BA_hr = pd.DataFrame({'GODEEEP-'+res:BA.sum(axis=1)}).merge(eia930_df.loc[eia930_df['eia_ba_name']==thisBA]['value'],how='left',left_index=True,right_index=True)
         BA_hr=BA_hr.rename(columns={'value':'eia930'})
-        first_mo,first_ye = plants_monthly.sort_values(by=['year','month'])[['month','year']].iloc[0]
+        # first_mo,first_ye = plants_monthly.sort_values(by=['year','month'])[['month','year']].iloc[0]
         # month_idx = pd.date_range(start=str(first_ye)+'-'+str(first_mo)+'-01 01:00:00',end='2020-12-01 01:00:00',freq='MS',tz='UTC').values.astype('datetime64[s]')
         BA_hr_diff[thisBA].index.name = 'datetime'
         BA_hr_diff[thisBA] = BA_hr_diff[thisBA].merge(BA_hr,how='outer',left_index=True,right_index=True)#pd.concat([BA_hr_diff[thisBA],BA_hr],axis=1)
