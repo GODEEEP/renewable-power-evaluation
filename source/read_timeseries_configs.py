@@ -158,8 +158,7 @@ def get_reported_ba_scada(ba,resource,datadir):
     elif ba == 'NYIS':
         scada_df = get_nyiso(validationdir)
     elif ba == 'ERCO':
-        scada_df = get_ercot_new(resource,validationdir)
-        # scada_df = get_ercot() # only wind data
+        scada_df = get_ercot(resource,validationdir)
     elif ba == 'SWPP':
         scada_df = get_swpp(resource,validationdir)
     return scada_df
@@ -287,51 +286,7 @@ def get_nyiso(datadir):
     ba_scada.index = ba_scada.index.tz_localize('UTC')
     return pd.DataFrame(ba_scada['Wind'])
 
-def get_ercot(datadir):
-    files = sorted(glob.glob(datadir+r'/ERCOT/Hourly Aggregated Wind and Solar Output 2014 - 2023Mar09/*.xls*'))
-    files = [i for i in files if 'Hourly_WindSolar_Output' not in i]
-    ba_scada = pd.DataFrame()
-    for fi in files:
-        er = pd.ExcelFile(fi)
-        if ('numbers' in er.sheet_names):
-            sheetn = 'numbers'
-        elif len([i for i in er.sheet_names if 'numbers' in i]) == 1:
-            sheetn = [i for i in er.sheet_names if 'numbers' in i][0]
-        else:
-            sheetn = er.sheet_names[0]
-        erc = er.parse(sheetn)
-        if pd.isnull(erc.iloc[0,0]):
-            erc = erc[1:]
-        if 'Unnamed: 0' in erc.columns:
-            erc = erc.rename(columns={'Unnamed: 0':'datetime'})
-        elif 'time-date stamp' in erc.columns:
-            erc = erc.rename(columns={'time-date stamp':'datetime'})
-        else: #
-            erc['Year'] = 2007
-            erc['Minute'] = 0
-            erc = erc.rename(columns={'Date':'Day'})
-            erc['datetime'] = pd.to_datetime(erc[['Year','Month','Day','Hour','Minute']])
-        if 'Installed Wind Capacity' in erc.columns:
-            erc = erc.rename(columns={'Installed Wind Capacity':'Total Wind Installed, MW'})
-        elif 'Wind Capacity Installed' in erc.columns:
-            erc = erc.rename(columns={'Wind Capacity Installed':'Total Wind Installed, MW'})
-        if 'Hourly Wind Output' in erc.columns:
-            erc = erc.rename(columns={'Hourly Wind Output':'Wind'})
-        elif 'Total Wind Output at Hour' in erc.columns:
-            erc = erc.rename(columns={'Total Wind Output at Hour':'Wind'})
-        else:
-            erc = erc.rename(columns={'Total Wind Output, MW':'Wind'})
-        if len(erc) % 24 != 0:
-            erc = erc[:len(erc)-1]
-        ba_scada = pd.concat([ba_scada,erc[['datetime','Wind','Total Wind Installed, MW']]])
-    ba_scada = ba_scada.sort_values(by='datetime')
-    ba_scada = ba_scada.set_index('datetime')
-    hour_idx = pd.date_range(start='2007-01-01 06:00:00',periods=122736,freq='H',tz='UTC').values.astype('datetime64[s]')
-    ba_scada.index = hour_idx
-    ba_scada.index = ba_scada.index.tz_localize('UTC')
-    return pd.DataFrame(ba_scada['Wind'])
-
-def get_ercot_new(resource,datadir):
+def get_ercot(resource,datadir):
     files = sorted(glob.glob(datadir+r'/ERCOT/FuelMixReport_PreviousYears/*.xls*'))
     pattern = r'^[a-zA-Z]{3}\d{4}'
     ba_scada = pd.DataFrame()
