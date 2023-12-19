@@ -29,8 +29,8 @@ importlib.reload(rtc)
 importlib.reload(cgt)
 
 # In[1]:
-datadir = r'/Users/camp426/Documents/PNNL/Data/GODEEEP'
-# datadir = os.getcwd()
+# datadir = r'/Users/camp426/Documents/PNNL/Data/GODEEEP'
+datadir = os.getcwd()
 
 #%%
 # Define the BAs in the analysis
@@ -64,7 +64,8 @@ if ('wind_configs' not in locals()) or ('solar_configs' not in locals()):
     print('reading in config files')
     wind_configs,solar_configs,_ = rtc.read_configs(datadir)
     print('done reading in config files')
-eia860m_long = cmi.make_plants_eia860m(read_860m,write_860m,use_monthly,wind_configs,solar_configs)
+validationdir = datadir+r'/validation_datasets'
+eia860m_long = cmi.make_plants_eia860m(read_860m,write_860m,use_monthly,wind_configs,solar_configs,validationdir)
 
 #%%
 # add interconnection information
@@ -81,7 +82,7 @@ eia860m_long.loc[eia860m_long['balancing authority code'].isin(erco),'interconne
 
 #%%
 # read in comparison datasets
-eia923,eia930_w,eia930_s = rtc.read_eia_923_930(datadir)
+eia923,eia930_w,eia930_s = rtc.read_eia_923_930(validationdir)
 eia930 = {
     'solar':eia930_s,
     'wind':eia930_w
@@ -214,7 +215,8 @@ validation_options = {
 
 
 #%%
-this_analysis = ['interannual_variability', 'daily_variability']
+this_analysis = ['seasonal_cf_nerc','seasonal_cf_ba']
+# this_analysis = list(validation_options.keys())
 validation = {x: validation_options[x] for x in this_analysis if x in validation_options}
 
 for valplot,vals in validation.items():
@@ -224,3 +226,5 @@ for valplot,vals in validation.items():
     freq,plot_func,resource_bas,comp,compute_cf,mask,agg,season_disagg = vals
     for res, these_bas in resource_bas.items():
         out = plot_func(all_power_hourly,eia860m_long,freq,res,these_bas,outdir,compute_cf,comp,mask,agg,season_disagg,savef=True,showf=True)
+
+# %%

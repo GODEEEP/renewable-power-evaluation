@@ -1,19 +1,6 @@
 import pandas as pd
-import numpy as np
-import os
-import matplotlib.pyplot as plt
 import calendar
-from datetime import timedelta
-import matplotlib.ticker as mtick
-import seaborn as sns
-import glob
-import re
 import read_timeseries_configs as rtc
-import create_monthly_infrastructure as cmi
-import evaluation_metrics_plots as emp
-from datetime import datetime
-import math
-from scipy import stats
 
 def get_monthyear(firstdate):
     monthyear = []
@@ -26,15 +13,6 @@ def get_monthyear(firstdate):
             monthyear.append((y,m))
     return monthyear
 
-# def intersect(l1,l2):
-#     l3 = [v for v in l1 if v in l2]
-#     return l3
-
-# def cap_num_p(df,pcu_drop):
-#     df['num plants'] = df['plant_gen_id'].count()
-#     df['total capacity'] = df['nameplate capacity (mw)'].sum()
-#     df['capacity bias'] = df[df['plant_code_unique'].isin(pcu_drop)]['nameplate capacity (mw)'].sum()
-#     return df
 
 
 # this function is used in one place below to convert the eia923 monthly series

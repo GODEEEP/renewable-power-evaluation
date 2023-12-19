@@ -14,14 +14,12 @@ import numpy as np
 import calendar
 # %%
 
-datadir = r'/Users/camp426/Documents/PNNL/Data/GODEEEP'
 
-
-def get_BPA_operational_generation(resource,solar_configs,wind_configs):
+def get_BPA_operational_generation(resource,solar_configs,wind_configs,datadir):
     # compare BPA godeeep wind with BPA on their website
     # use the BPA published list of generators in/out of BA:
     # https://transmission.bpa.gov/business/operations/wind/Solar_and_Wind_Nameplate_LIST.pdf
-    raw = get_eia860y(2020,['OA','OP','SB','OS','RE'],solar_configs,wind_configs)
+    raw = get_eia860y(2020,['OA','OP','SB','OS','RE'],solar_configs,wind_configs,datadir)
     ba_list = pd.read_excel(datadir+r'/BPA/Solar_and_Wind_Nameplate_LIST.xlsx',skiprows=10,sheet_name=resource)
     ba_list['Operating Date'] = pd.to_datetime(ba_list['Operating Date'])
     ba_list = ba_list[['Max Production EIA','Plant ID','Gen ID','Plant Name EIA','Operating Date']]
@@ -112,7 +110,7 @@ def make_eia860m_from_annual(monthyears_before,raw):
     return ba_plants
 
 # reads in the 860m files through July 2016
-def make_eia860m_from_monthly(solar_configs,wind_configs):
+def make_eia860m_from_monthly(solar_configs,wind_configs,datadir):
     eia860m = pd.DataFrame()
     monthyears = []
     for y in range(2020,2015,-1):
@@ -166,7 +164,7 @@ def make_eia860m_from_monthly(solar_configs,wind_configs):
         else:
             eia860m.loc[(eia860m['plant id']==fp)&(eia860m['balancing authority code'].isna()),['balancing authority code']] = np.nan
     eia860m = eia860m[~eia860m.isna().any(axis=1)]
-    eia860m = eia860m.groupby('year').apply(get_pcu_pgi_scalenamep_from_configs,solar_configs,wind_configs)
+    eia860m = eia860m.groupby('year').apply(get_pcu_pgi_scalenamep_from_configs,solar_configs,wind_configs,datadir)
     eia860m = eia860m.reset_index(drop=True)
     # fix the plant_code_unique and scale_nameplate for plants/gens that do not have pcu, pgi, scalen from configs
     fix_pcu_sn = eia860m[eia860m.isna().any(axis=1)][['plant id','generator id']].drop_duplicates().reset_index(drop=True)
@@ -185,7 +183,7 @@ def make_eia860m_from_monthly(solar_configs,wind_configs):
     eia860m.to_csv(datadir+r'/EIA860/all_860m.csv',index=False)
     return eia860m
 
-def fix_eia860m_ba_from_annual_plant(eia_df,y):
+def fix_eia860m_ba_from_annual_plant(eia_df,y,datadir):
     # need the annual 860 plant sheet to get the BA
     eia860y_p = pd.read_excel(datadir+r'/EIA860/eia860'+str(y)+'/2___Plant_Y'+str(y)+'.xlsx',skiprows=1,sheet_name='Plant')
     eia860y_p = eia860y_p.rename(columns={'Plant Code':'plant id','Balancing Authority Code':'balancing authority code'})
@@ -194,7 +192,7 @@ def fix_eia860m_ba_from_annual_plant(eia_df,y):
     return outdf['balancing authority code'].values
 
 
-def get_eia860y(yr,status,solar_configs,wind_configs):
+def get_eia860y(yr,status,solar_configs,wind_configs,datadir):
     eia860_wind = pd.read_excel(datadir+r'/EIA860/eia860'+str(yr)+'/3_2_Wind_Y'+str(yr)+'.xlsx',skiprows=1,sheet_name='Operable')
     eia860_solar = pd.read_excel(datadir+r'/EIA860/eia860'+str(yr)+'/3_3_Solar_Y'+str(yr)+'.xlsx',skiprows=1,sheet_name='Operable')
     eia860_solar = eia860_solar[['Plant Code','Plant Name','Generator ID','Status','State','Operating Month',
@@ -238,21 +236,21 @@ def get_eia860y(yr,status,solar_configs,wind_configs):
     # eia860_y['plant_code_unique'] = eia860_y['plant_code_unique'].astype(str)
     return eia860_y
 
-def get_pcu_pgi_scalenamep_from_configs(df,solar_configs,wind_configs):
+def get_pcu_pgi_scalenamep_from_configs(df,solar_configs,wind_configs,datadir):
     thisyear = df.year.drop_duplicates().values[0]
     status = ['OP','SB','OA','OS','RE']
     print(thisyear)
-    merged_df = df.merge(get_eia860y(thisyear,status,solar_configs,wind_configs)[['plant id','generator id','resource','plant_code_unique','plant_gen_id','scale_nameplate']],
+    merged_df = df.merge(get_eia860y(thisyear,status,solar_configs,wind_configs,datadir)[['plant id','generator id','resource','plant_code_unique','plant_gen_id','scale_nameplate']],
                          how='left',
                          left_on=['plant id','generator id','resource'],
                          right_on=['plant id','generator id','resource'])
     return merged_df
 
-def make_plants_eia860m(read_eia860,write_eia860,use_monthly,wind_configs,solar_configs):
+def make_plants_eia860m(read_eia860,write_eia860,use_monthly,wind_configs,solar_configs,datadir):
     # pull in the monthly eia860 df
     if read_eia860 == True:
         if use_monthly == True:
-            eia860monthly = make_eia860m_from_monthly(solar_configs,wind_configs)
+            eia860monthly = make_eia860m_from_monthly(solar_configs,wind_configs,datadir)
             eia860monthly['plant id'] = eia860monthly['plant id'].astype(int)
             if len(eia860monthly[eia860monthly['plant_gen_id'].isna()])>0:
                 na_pc = eia860monthly[eia860monthly['plant_gen_id'].isna()][['plant id','resource']].drop_duplicates()
@@ -277,7 +275,7 @@ def make_plants_eia860m(read_eia860,write_eia860,use_monthly,wind_configs,solar_
             # use the eia860_2016 annual file to gather monthly information
             # for the remainder of months and years -- back through jan 2007
             # use the eia860_annual to import information about plant_code_unique and scale_nameplate
-            eia860m_before = make_eia860m_from_annual(sorted(monthyears),get_eia860y(2016,['OP','OA'],solar_configs,wind_configs))
+            eia860m_before = make_eia860m_from_annual(sorted(monthyears),get_eia860y(2016,['OP','OA'],solar_configs,wind_configs,datadir))
             eia860m_before_s = eia860m_before[eia860m_before['resource']=='solar'].merge(solar_configs[['plant_code_unique','plant_gen_id']],how='left',left_on='plant_code_unique',right_on='plant_code_unique')
             if len(eia860m_before_s[eia860m_before_s['plant_code_unique'].isna()])>0:
                 df_nona = eia860m_before_s[~eia860m_before_s['plant_code_unique'].isna()].reset_index(drop=True)
@@ -331,7 +329,7 @@ def make_plants_eia860m(read_eia860,write_eia860,use_monthly,wind_configs,solar_
                 m_beg = 12
                 for m in range(m_beg,0,-1):
                     monthyears.append((y,m))
-            eia860m = make_eia860m_from_annual(sorted(monthyears),get_eia860y(2020,['OP','OA'],solar_configs,wind_configs))
+            eia860m = make_eia860m_from_annual(sorted(monthyears),get_eia860y(2020,['OP','OA'],solar_configs,wind_configs,datadir))
             eia860m_w = eia860m[eia860m['resource']=='wind'].merge(wind_configs[['plant_code_unique','plant_gen_id']],how='left',left_on='plant_code_unique',right_on='plant_code_unique')
             if len(eia860m_w[eia860m_w['plant_code_unique'].isna()])>0:
                 df_nona = eia860m_w[~eia860m_w['plant_code_unique'].isna()].reset_index(drop=True)
@@ -356,7 +354,7 @@ def make_plants_eia860m(read_eia860,write_eia860,use_monthly,wind_configs,solar_
         # if these plantid_genid are in eia860m[BPA] after they are no longer in bpa_monthly,
         # remove them from eia860m[BPA] and place them in eia860m[pacw/pge/avrn]
         # find the month each plant_gen_id is not longer in bpa_monthly
-        bpa_monthly = get_BPA_operational_generation('wind',solar_configs,wind_configs)
+        bpa_monthly = get_BPA_operational_generation('wind',solar_configs,wind_configs,datadir)
         for ba in fix_bpa_inventory:
             for p in fix_bpa_inventory[ba]:
                 mo,ye = bpa_monthly[bpa_monthly['plant_gen_id']==p].sort_values(by=['year','month'],ascending=False)[['month','year']].values[0]

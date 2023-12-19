@@ -99,7 +99,7 @@ def setup_timeseries(df,compute_cf,capacity,cols):
     df = df[cols]
     return df
                 # dd,freq,res,comp,datadir,thesecols,BA,'balevel_'+sname,savef
-def plot_whiskers(dd,freq,res,comp,plotdir,thesecols,region,agg,savef,showf):
+def plot_whiskers(dd,freq,res,comp,plotdir,thesecols,region,agg,ymax,savef,showf):
     dd = dd[dd['nameplate capacity (mw)']>0]
     # print(dd.columns)
     # print(comp)
@@ -148,10 +148,10 @@ def plot_whiskers(dd,freq,res,comp,plotdir,thesecols,region,agg,savef,showf):
     ax.set_ylabel('Capacity Factor',fontsize=16)
     ax.set_xlabel(grouping+grp_unit,fontsize=16)
     # print(region)
-    ax.set_title(region+' '+'Capacity Factor'+' '+res.capitalize(),fontsize=18)
+    ax.set_title(region.upper()+' '+'Capacity Factor'+' '+res.capitalize(),fontsize=18)
     ax.set_xticks(x + width, xaxis)
     ax.set_xticklabels(xaxis,rotation=rotate, fontsize=14)
-    ax.set_ylim([0,1.1])
+    ax.set_ylim([0,ymax])
     ax.tick_params(axis='y',labelsize=14)
     ax.legend(loc='upper left',fontsize=14)
     ax.yaxis.grid(True, linestyle='-', which='major', color='lightgrey',
@@ -183,6 +183,7 @@ def plot_grouped_box(all_power_hourly,eia860m_long,freq,res,balist,outdir,comput
         if not os.path.exists(plotdir):
             os.makedirs(plotdir)
     if aggregation == 'by BA':
+        ymax = 1.1
         for BA in balist:
             dd = all_power_hourly[res][BA].copy(deep=True)[['GODEEEP-'+res]+comp]
             thesecols = dd.columns.tolist()
@@ -194,10 +195,11 @@ def plot_grouped_box(all_power_hourly,eia860m_long,freq,res,balist,outdir,comput
             if season_disagg == True:
                 for season,sname in zip(seasons,season_names):
                     dd_plot = dd[dd.index.month.isin(season)]
-                    plot_whiskers(dd_plot,freq,res,comp,plotdir,thesecols,BA+' '+sname,'balevel_'+sname,savef,showf)
+                    plot_whiskers(dd_plot,freq,res,comp,plotdir,thesecols,BA+' '+sname,'balevel_'+sname,ymax,savef,showf)
             else:
-                plot_whiskers(dd,freq,res,comp,plotdir,thesecols,BA,'balevel',savef,showf)
+                plot_whiskers(dd,freq,res,comp,plotdir,thesecols,BA,'balevel',ymax,savef,showf)
     elif aggregation == 'by NERC region':
+        ymax = 0.8 # sets ylim for box and whisker plots
         for bas_in_nerc,nerc_name in zip([wecc,eic,erco],nerc_zones):
             plot_bas = [i for i in bas_in_nerc if i in balist]
             nerc_wide = pd.DataFrame(columns=['GODEEEP-'+res]+comp+['nameplate capacity (mw)'],
@@ -214,7 +216,7 @@ def plot_grouped_box(all_power_hourly,eia860m_long,freq,res,balist,outdir,comput
                 # 3. place the 'dd' in nerc_eachba
                 nerc_eachba[:len(dd),:,ba_idx] = dd
             nerc_wide.iloc[:,:] = nerc_eachba.sum(axis=2)
-            dd = plot_whiskers(nerc_wide,freq,res,comp,plotdir,thesecols,nerc_name,'nerclevel',savef,showf)
+            dd = plot_whiskers(nerc_wide,freq,res,comp,plotdir,thesecols,nerc_name,'nerclevel',ymax,savef,showf)
     return
 
 

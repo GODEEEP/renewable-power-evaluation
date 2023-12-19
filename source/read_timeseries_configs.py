@@ -9,9 +9,9 @@ from datetime import datetime
 
 def read_configs(datadir):
     # read in reV/SAM config files
-    wind_configs = pd.read_csv(datadir+r'/power_windsolar/eia_wind_configs.csv')
+    wind_configs = pd.read_csv(datadir+r'/tgw-gen-historical/wind/eia_wind_configs.csv')
     wind_configs['plant_gen_id'] = wind_configs['plant_code'].astype(str) + '_' + wind_configs['generator_id']
-    solar_configs = pd.read_csv(datadir+r'/power_windsolar/eia_solar_configs.csv')
+    solar_configs = pd.read_csv(datadir+r'/tgw-gen-historical/solar/eia_solar_configs.csv')
     sc_keep = solar_configs[~solar_configs['generator_id'].str.contains(',')]
     sc_fix = solar_configs[solar_configs['generator_id'].str.contains(',')]
     sc_fix = sc_fix.assign(**{'generator_id':sc_fix['generator_id'].str.split(',')}).explode('generator_id')
@@ -25,7 +25,7 @@ def read_godeeep_data(datadir):
     # extract the time series from the reV runs which used the GODEEEP-Wind dataset
     gd_w = pd.DataFrame()
     for yr in range(2006,2021):
-        w = pd.read_csv(datadir+r'/power_windsolar/generation_eia/wind_gen_cf_'+str(yr)+'.csv')
+        w = pd.read_csv(datadir+r'/tgw-gen-historical/wind/historical/wind_gen_cf_'+str(yr)+'.csv')
         gd_w = pd.concat([gd_w,w])
     gd_w['datetime'] = pd.to_datetime(gd_w['datetime'])
     gd_w = gd_w.set_index('datetime')
@@ -40,7 +40,7 @@ def read_godeeep_data(datadir):
             print(cc,' cf = 0')
     gd_s = pd.DataFrame()
     for yr in range(2006,2021):
-        s = pd.read_csv(datadir+r'/power_windsolar/historical_bc/solar_gen_cf_'+str(yr)+'_bc.csv')
+        s = pd.read_csv(datadir+r'/tgw-gen-historical/solar/historical_bc/solar_gen_cf_'+str(yr)+'_bc.csv')
         gd_s = pd.concat([gd_s,s])
     gd_s['datetime'] = pd.to_datetime(gd_s['datetime'])
     gd_s = gd_s.set_index('datetime')
@@ -52,7 +52,7 @@ def read_godeeep_data(datadir):
     # align the gd_s dataset with the solar config files
     # using the framework of solar generator in the solar config files
     wind_configs,solar_configs,pc = read_configs(datadir)
-    eia860_y = cmi.get_eia860y(2020,['OP'],solar_configs,wind_configs)
+    eia860_y = cmi.get_eia860y(2020,['OP'],solar_configs,wind_configs,datadir+r'/validation_datasets')
     pi_pcu = eia860_y.loc[(eia860_y['resource']=='solar')][['plant id','plant_code_unique']]      
     pi_pcu['plant id'] = pi_pcu['plant id'].astype('str')
     fix_gd_s = pi_pcu[pi_pcu['plant id'].isin([str(i) for i in pc])
@@ -146,21 +146,22 @@ def read_eia_923_930(datadir):
 
 def get_reported_ba_scada(ba,resource,datadir):
     print('reading in scada data for ',ba)
+    validationdir = datadir+r'/validation_datasets'
     if ba == 'CISO':
-        scada_df = get_caiso(resource,datadir)
+        scada_df = get_caiso(resource,validationdir)
     elif ba == 'BPAT':
-        scada_df = get_bpa(datadir)
+        scada_df = get_bpa(validationdir)
     elif ba == 'MISO':
-        scada_df = get_miso(datadir)
+        scada_df = get_miso(validationdir)
     elif ba == 'ISNE':
-        scada_df = get_isone(resource,datadir)
+        scada_df = get_isone(resource,validationdir)
     elif ba == 'NYIS':
-        scada_df = get_nyiso(datadir)
+        scada_df = get_nyiso(validationdir)
     elif ba == 'ERCO':
-        scada_df = get_ercot_new(resource,datadir)
+        scada_df = get_ercot_new(resource,validationdir)
         # scada_df = get_ercot() # only wind data
     elif ba == 'SWPP':
-        scada_df = get_swpp(resource,datadir)
+        scada_df = get_swpp(resource,validationdir)
     return scada_df
 
 def get_bpa(datadir):
