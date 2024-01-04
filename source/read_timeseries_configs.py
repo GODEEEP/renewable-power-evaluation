@@ -5,6 +5,7 @@ import glob
 import re
 import create_monthly_infrastructure as cmi
 from datetime import datetime
+import os
 
 
 def read_configs(datadir):
@@ -153,9 +154,9 @@ def read_eia_923_930(datadir):
 # functions to extract the ba self-reported generation
 
 
-def get_reported_ba_scada(ba, resource, datadir):
-  print('reading in scada data for ', ba)
-  validationdir = datadir+r'/validation_datasets'
+def get_reported_ba_scada(ba, resource, validationdir):
+  print('reading in scada data for', ba)
+  # validationdir = datadir+r'/validation_datasets'
   if ba == 'CISO':
     scada_df = get_caiso(resource, validationdir)
   elif ba == 'BPAT':
@@ -217,19 +218,21 @@ def get_bpa(datadir):
 
 
 def get_miso(datadir):
-  fi_list = ['20081231_hwd_HIST.csv',
-             '20091231_hwd_HIST.csv',
-             '20101231_hwd_HIST.csv',
-             '20111231_hwd_HIST.csv',
-             '20121231_hwd_HIST.csv',
-             '20131231_hwd_HIST.csv',
-             '20141231_hwd_HIST.csv',
-             '20151231_hwd_hist.csv',
-             '20161231_hwd_hist.csv',
-             '20171231_hwd_HIST.csv',
-             '20181231_hwd_HIST.csv',
-             '20191231_hwd_HIST.csv',
-             '20201231_hwd_HIST.csv']
+  #   fi_list = ['20081231_hwd_HIST.csv',
+  #              '20091231_hwd_HIST.csv',
+  #              '20101231_hwd_HIST.csv',
+  #              '20111231_hwd_HIST.csv',
+  #              '20121231_hwd_HIST.csv',
+  #              '20131231_hwd_HIST.csv',
+  #              '20141231_hwd_HIST.csv',
+  #              '20151231_hwd_hist.csv',
+  #              '20161231_hwd_hist.csv',
+  #              '20171231_hwd_HIST.csv',
+  #              '20181231_hwd_HIST.csv',
+  #              '20191231_hwd_HIST.csv',
+  #              '20201231_hwd_HIST.csv']
+  fi_list = os.listdir(datadir+r'/MISO/')
+  fi_list.sort()
   ba_scada = pd.DataFrame()
   for fi in fi_list:
     mi = pd.read_csv(datadir+r'/MISO/'+fi, skiprows=7)  # ,parse_dates=[['Market Day\t','Hour Ending']])
@@ -240,7 +243,7 @@ def get_miso(datadir):
   # ba_scada['Hour Ending'] = ba_scada['Hour Ending']-1
   # ba_scada['datetime'] = pd.to_datetime(ba_scada['Market Day\t']+' '
   #  +ba_scada['Hour Ending'].astype(str)+':'+np.zeros(len(ba_scada)).astype(str))
-  est_hour_idx = pd.date_range(start='2008-01-01 05:00:00', end='2021-01-01 04:55:00',
+  est_hour_idx = pd.date_range(start='2008-01-01 05:00:00', end='2020-01-01 04:55:00',
                                freq='H', tz='UTC').values.astype('datetime64[s]')
   ba_scada['datetime'] = est_hour_idx
   ba_scada['Wind'] = ba_scada['MWh']
@@ -330,6 +333,7 @@ def get_ercot(resource, datadir):
         delim = re.findall(r'\d+([\s_ -]+)\w*', df[df_col].values[0])[0]
         df[['Date', 'Fuel']] = df[df_col].str.split(delim, expand=True)
         df = df.drop(columns={df_col})
+        df['Date'] = pd.to_datetime(df['Date'], format='%m/%d/%y')
       df_datefuel = df[['Date', 'Fuel']]
       df = df.drop(['Date', 'Fuel'], axis=1)
       totaldrop = [i for i in df.columns if i == 'Total' or i == 'Daily MWH' or i == 'Settlement Type']
@@ -350,7 +354,9 @@ def get_ercot(resource, datadir):
       df.loc[(df['Fuel'] == 'Wnd'), ['Fuel']] = 'Wind'
       df = df[df['Fuel'].isin(['Wind', 'Solar'])]
       ba_scada = pd.concat([ba_scada, df])
-  ba_scada['Date'] = pd.to_datetime(ba_scada['Date'], format='%m/%d/%y')
+  # import pdb
+  # pdb.set_trace()
+  # ba_scada['Date'] = pd.to_datetime(ba_scada['Date'], format='%m/%d/%y')
   ba_scada = ba_scada.sort_values(by=['Date', 'HE', 'int'])
   ba_scada = ba_scada[ba_scada['Fuel'] == resource.capitalize()]
   if resource == 'wind':
@@ -436,7 +442,11 @@ def get_isone(resource, datadir):
         isne_interp = isne_interp.reset_index(drop=True)
         mask = isne_interp['diff'] == pd.Timedelta('1H')
         isne_interp['group'] = mask.cumsum()
-        isne_interp = isne_interp.groupby('group').apply(interp_bw_two).reset_index(drop=True)
+        # import pdb
+        # pdb.set_trace()
+        isne_interp = isne_interp.drop(['Date', 'diff'], axis=1).groupby(
+            'group').apply(interp_bw_two).reset_index(drop=True)
+        isne_interp['Date'] = isne_interp['datetime'].dt.date
         isne = pd.concat([isne_nointerp, isne_interp])
         isne = isne.sort_values(by='datetime')
         isne = isne[['year', 'Date', 'Hour', 'Wind', 'datetime']]

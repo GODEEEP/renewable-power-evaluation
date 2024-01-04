@@ -127,14 +127,14 @@ def create_balevel_generation(
           how='left', left_index=True, right_index=True)
     BA_hr = BA_hr.rename(columns={'value': 'eia930'})
     # first_mo,first_ye = plants_monthly.sort_values(by=['year','month'])[['month','year']].iloc[0]
-    # month_idx = pd.date_range(start=str(first_ye)+'-'+str(first_mo)+'-01 01:00:00',end='2020-12-01 01:00:00',
-    # freq='MS',tz='UTC').values.astype('datetime64[s]')
+    # month_idx = pd.date_range(start=str(first_ye)+'-'+str(first_mo)+'-01 01:00:00',
+    #                 end='2020-12-01 01:00:00',freq='MS',tz='UTC').values.astype('datetime64[s]')
     BA_hr_diff[thisBA].index.name = 'datetime'
     # pd.concat([BA_hr_diff[thisBA],BA_hr],axis=1)
     BA_hr_diff[thisBA] = BA_hr_diff[thisBA].merge(BA_hr, how='outer', left_index=True, right_index=True)
     BA_hr_diff[thisBA].index = pd.to_datetime(BA_hr_diff[thisBA].index).values.astype('datetime64[s]')
     # pd.date_range(start = BA_hr_diff[thisBA].index[0],periods=len(BA_hr_diff[thisBA]),
-    # freq='1H',tz='UTC').values.astype('datetime64[s]')
+    #  freq='1H',tz='UTC').values.astype('datetime64[s]')
     BA_m = BA_hr_diff[thisBA].resample('MS').sum()
     eia923_ba = eia923_df[eia923_df['plant id'].isin(plants_monthly['plant id'].drop_duplicates().tolist())]
     for yr in [*set([i[0] for i in monthyears])]:

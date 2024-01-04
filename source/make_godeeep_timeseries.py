@@ -1,5 +1,6 @@
 import pandas as pd
 import create_generation_timeseries as cgt
+import os
 
 
 def make_formatted_timeseries(
@@ -26,13 +27,16 @@ def make_formatted_timeseries(
       all_plant_gen[res] = cgt.create_plantlevel_generation(
           gd_timeseries[res], eia860m_long, res, monthyears, solar_configs, wind_configs, datadir)
     else:
-      all_plant_gen[res] = pd.read_csv(datadir+r'/historical_power/'+res+'_plant_generation.csv')
+      all_plant_gen[res] = pd.read_csv(
+          datadir+r'/historical_power/'+res+'_plant_generation.csv', index_col='datetime', parse_dates=True)
 
   # use all_plant_gen dict to create the BA level generation using the plant_gen_id
   all_power_hourly = {}
   if make_BA_dicts:
     if 'all_plant_gen' in locals():
+      print('Reading scada data')
       for res, balist, sublist in zip(['solar', 'wind'], [slist_all, wlist_all], [slist, wlist]):  # 'wind',wlist,
+        print(res)
         all_power_hourly[res] = cgt.create_balevel_generation(
             all_plant_gen[res],
             res, balist, gd_timeseries[res],
@@ -43,20 +47,24 @@ def make_formatted_timeseries(
     else:
       print('need all_plant_gen dict to create BA dict \n')
       print('set make_plant_dicts to True')
-    if not save_BA_dicts:
+    if save_BA_dicts:
       for res in ['solar', 'wind']:
         bas = all_power_hourly[res].keys()
-        df_tosave = pd.DataFrame(index=all_power_hourly['solar']['TEC'].index)
+        # index_tosave = pd.DataFrame(index=all_power_hourly['solar']['TEC'].index)
         for b in bas:
-          godeeep_power = pd.DataFrame(all_power_hourly[res][b]['GODEEEP-'+res]).rename(columns={'GODEEEP-'+res: b})
-          df_tosave = df_tosave.merge(godeeep_power, how='left', left_index=True, right_index=True)
-        df_tosave.to_csv(datadir+r'/historical_power/'+res+'_BA_generation.csv')
+          # godeeep_power = pd.DataFrame(all_power_hourly[res][b]['GODEEEP-'+res]).rename(columns={'GODEEEP-'+res: b})
+          # df_tosave = index_tosave.merge(godeeep_power, how='left', left_index=True, right_index=True)
+          # df_tosave.to_csv(datadir+r'/historical_power/'+b+'_'+res+'_generation.csv', index_label='datetime')
+          fn = datadir+r'/historical_power/'+b+'_'+res+'_generation.csv'
+          all_power_hourly[res][b].to_csv(fn, index_label='datetime')
   else:
     all_power_hourly = {}
     for res, balist in zip(['solar', 'wind'], [slist_all, wlist_all]):
       BA_hr_diff = {}
       for thisBA in balist:
-        BA_hr_diff[thisBA] = pd.read_csv(datadir+r'/historical_power/'+thisBA+'_'+res+'_generation.csv')
+        fn = datadir+r'/historical_power/'+thisBA+'_'+res+'_generation.csv'
+        if os.path.exists(fn):
+          BA_hr_diff[thisBA] = pd.read_csv(fn, index_col='datetime', parse_dates=True)
       all_power_hourly[res] = BA_hr_diff
 
   # check for negative production

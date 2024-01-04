@@ -48,7 +48,8 @@ slist = ['ERCO', 'ISNE', 'SWPP', 'CISO']
 
 BA_list = list(set(slist_all+wlist_all))
 # In[46]:
-# Create a dictionary of the installed capacities of each power plant, each resource, for each balancing authority, 2007 - 2020
+# Create a dictionary of the installed capacities of each power plant, each resource, for each balancing authority,
+# 2007 - 2020
 # setting read_860m to True re-creates the metadata file on installed capacities
 # setting read_860m to False reads the file {current_directory}/EIA860/all_years_860m.csv
 read_860m = True
@@ -96,12 +97,12 @@ eia923 = {
 # either create the dictionaries of generation based on the gd_w,gd_s cf time series and eia860m_long,
 # or read the generation time series from file
 # THIS STEP TAKES THE LONGEST TIME
-make_plant_dicts = True
-make_BA_dicts = True
-save_BA_dicts = False  # alternative is to save only the BA hourly generation
-all_power_hourly = mgt.make_formatted_timeseries(
-    datadir, eia923, eia930, ba_res_list, gd_timeseries, make_plant_dicts, make_BA_dicts, save_BA_dicts, eia860m_long,
-    solar_configs, wind_configs)
+make_plant_dicts = False  # create from scratch if True (takes a while), otherwise read from cached csv files
+make_BA_dicts = False  # create data from scratch if True (takes a while), otherwise read from cached csv files
+save_BA_dicts = True  # save out data to csv if we are creating it from scratch
+all_power_hourly = mgt.make_formatted_timeseries(validationdir, eia923, eia930, ba_res_list, gd_timeseries,
+                                                 make_plant_dicts, make_BA_dicts, save_BA_dicts, eia860m_long,
+                                                 solar_configs, wind_configs)
 
 # %%
 # validation
@@ -132,14 +133,14 @@ validation_options = {
         False
     ],
     'interannual_variability': [  # this is the directory under plots
-        'Y',                    # annual or monthly summary
-        emp.plot_correlation,   # stat_function
-        all_resource_bas,           # resource (wind/solar) and bas for that resource
-        ['eia923'],             # comparison dataset
-        True,                    # compute_cf
-        True,               # mask bad data
-        'by NERC region',   # spatial aggregation
-        False               # seasonal disaggregation -- only used in diurnal plots
+        'Y',                   # annual or monthly summary
+        emp.plot_correlation,  # stat_function
+        all_resource_bas,      # resource (wind/solar) and bas for that resource
+        ['eia923'],            # comparison dataset
+        True,                  # compute_cf
+        True,                  # mask bad data
+        'by NERC region',      # spatial aggregation
+        False                  # seasonal disaggregation -- only used in diurnal plots
     ],
     'seasonal_cf_nerc': [
         'Seasonal',
