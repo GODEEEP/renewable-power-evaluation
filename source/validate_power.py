@@ -18,6 +18,7 @@ import evaluation_metrics_plots as emp
 import create_generation_timeseries as cgt
 import make_godeeep_timeseries as mgt
 import os
+import sys
 
 # In[42]:
 import importlib
@@ -43,8 +44,8 @@ gd_timeseries = {
 slist_all = ba_res_list['solar']
 wlist_all = ba_res_list['wind']
 
-wlist = ['ERCO', 'ISNE', 'SWPP', 'CISO', 'BPAT', 'MISO', 'NYIS']
-slist = ['ERCO', 'ISNE', 'SWPP', 'CISO']
+wlist = ['ERCO', 'ISNE', 'SWPP', 'CISO', 'BPAT']
+slist = ['ERCO', 'ISNE', 'SWPP', 'CISO', 'BPAT', 'MISO', 'NYIS']
 
 BA_list = list(set(slist_all+wlist_all))
 # In[46]:
@@ -97,8 +98,8 @@ eia923 = {
 # either create the dictionaries of generation based on the gd_w,gd_s cf time series and eia860m_long,
 # or read the generation time series from file
 # THIS STEP TAKES THE LONGEST TIME
-make_plant_dicts = False  # create from scratch if True (takes a while), otherwise read from cached csv files
-make_BA_dicts = False  # create data from scratch if True (takes a while), otherwise read from cached csv files
+make_plant_dicts = True  # create from scratch if True (takes a while), otherwise read from cached csv files
+make_BA_dicts = True  # create data from scratch if True (takes a while), otherwise read from cached csv files
 save_BA_dicts = True  # save out data to csv if we are creating it from scratch
 all_power_hourly = mgt.make_formatted_timeseries(validationdir, eia923, eia930, ba_res_list, gd_timeseries,
                                                  make_plant_dicts, make_BA_dicts, save_BA_dicts, eia860m_long,
@@ -125,7 +126,8 @@ validation_options = {
     'infrastructure_buildout': [
         'Y',
         emp.plot_grouped_bars,
-        resource_bas,
+        {'solar': ['ERCO', 'ISNE', 'SWPP', 'CISO', 'BPAT'],
+         'wind': ['ERCO', 'ISNE', 'SWPP', 'CISO', 'BPAT',]},
         ['eia923', 'scada'],
         False,
         '',
@@ -166,7 +168,8 @@ validation_options = {
     'diurnal_cf_seasonal': [
         'Diurnal',
         emp.plot_grouped_box,
-        resource_bas,  # only use resource_bas for this
+        {'solar': ['ERCO', 'ISNE', 'SWPP', 'CISO'],
+         'wind': ['ERCO', 'ISNE', 'SWPP', 'CISO', 'BPAT', 'MISO', 'NYIS']},
         ['scada'],
         '',
         '',
@@ -176,7 +179,8 @@ validation_options = {
     'diurnal_cf': [
         'Diurnal',
         emp.plot_grouped_box,
-        resource_bas,  # only use resource_bas for this
+        {'solar': ['ERCO', 'ISNE', 'SWPP', 'CISO'],
+         'wind': ['ERCO', 'ISNE', 'SWPP', 'CISO', 'BPAT', 'MISO', 'NYIS']},
         ['scada'],
         '',
         '',
@@ -186,7 +190,8 @@ validation_options = {
     'earth_mover_dist_cf': [
         dates,
         emp.plot_emd,
-        resource_bas,  # only use resource_bas for this
+        {'solar': ['ERCO', 'ISNE', 'SWPP', 'CISO'],
+         'wind': ['ERCO', 'ISNE', 'SWPP', 'CISO', 'BPAT', 'MISO', 'NYIS']},
         ['scada'],
         True,  # compute_cf
         '',
@@ -196,38 +201,66 @@ validation_options = {
     'earth_mover_dist_kwh': [
         dates,
         emp.plot_emd,
-        resource_bas,  # only use resource_bas for this
+        {'solar': ['ERCO', 'ISNE', 'SWPP', 'CISO'],
+         'wind': ['ERCO', 'ISNE', 'SWPP', 'CISO', 'BPAT', 'MISO', 'NYIS']},
         ['scada'],
         False,  # compute_cf
         '',
         '',
         False
     ],
-    'daily_variability': [  # this is the directory under plots
-        'D',                    # annual or monthly summary
-        emp.plot_correlation,   # stat_function
-        resource_bas,           # resource (wind/solar) and bas for that resource
+    'daily_variability': [     # this is the directory under plots
+        'D',                   # annual or monthly summary
+        emp.plot_correlation,  # stat_function
+        {'solar': ['ERCO', 'ISNE', 'SWPP', 'CISO'],
+         'wind': ['ERCO', 'ISNE', 'SWPP', 'CISO', 'BPAT', 'MISO', 'NYIS']},
         ['scada'],             # comparison dataset
-        True,                    # compute_cf
-        False,               # mask bad data
-        'by BA',   # spatial aggregation
-        False               # seasonal disaggregation -- only used in diurnal plots
+        True,                  # compute_cf
+        False,                 # mask bad data
+        'by BA',               # spatial aggregation
+        False                  # seasonal disaggregation -- only used in diurnal plots
     ]
 }
 
 
 # %%
-this_analysis = ['seasonal_cf_nerc', 'seasonal_cf_ba']
+this_analysis = ['infrastructure_buildout',
+                 'interannual_variability',
+                 'seasonal_cf_nerc',
+                 'seasonal_cf_ba',
+                 'diurnal_cf_seasonal',
+                 'diurnal_cf',
+                 'earth_mover_dist_cf',
+                 'earth_mover_dist_kwh',
+                 'daily_variability']
+# this_analysis = ['seasonal_cf_nerc']
+# this_analysis = ['diurnal_cf_seasonal']
+# this_analysis = ['diurnal_cf']
+this_analysis = ['infrastructure_buildout']
 # this_analysis = list(validation_options.keys())
 validation = {x: validation_options[x] for x in this_analysis if x in validation_options}
 
 for valplot, vals in validation.items():
+  print(valplot)
   outdir = datadir+'/validation_results/'+valplot
   if not os.path.exists(outdir):
     os.makedirs(outdir)
   freq, plot_func, resource_bas, comp, compute_cf, mask, agg, season_disagg = vals
+
   for res, these_bas in resource_bas.items():
     out = plot_func(all_power_hourly, eia860m_long, freq, res, these_bas, outdir,
-                    compute_cf, comp, mask, agg, season_disagg, savef=True, showf=True)
+                    compute_cf, comp, mask, agg, season_disagg, savef=True, showf=False)
 
-# %%
+  # tile plots
+  if valplot == 'infrastructure_buildout':
+    os.system(f'montage {outdir}/plots/*.png -tile 2x5 -geometry +0+0 {outdir}/{valplot}.png')
+  if valplot == 'seasonal_cf_nerc':
+    os.system(f'montage {outdir}/plots/*.png -tile 2x3 -geometry +0+0 {outdir}/{valplot}.png')
+
+if 'diurnal_cf' in this_analysis and 'diurnal_cf_seasonal' in this_analysis:
+  dpath = 'validation_results/diurnal_cf/plots'
+  dspath = 'validation_results/diurnal_cf_seasonal/plots'
+  os.system(f'montage {dpath}/ERCO_solar_balevel.png {dpath}/BPAT_wind_balevel.png ' +
+            f'{dspath}/ERCOT\ MAM_solar_balevel_MAM.png ' f'{dspath}/BPAT\ MAM_wind_balevel_MAM.png ' +
+            f'{dspath}/ERCOT\ SON_solar_balevel_SON.png ' f'{dspath}/BPAT\ SON_wind_balevel_SON.png ' +
+            '-tile 2x3 -geometry +0+0 validation_results/diurnal.png')

@@ -29,7 +29,8 @@ def plot_infrastructure_over_time(
       ba_hourly_power = ba_hourly_power.rename(columns={'level_0': 'year', 'level_1': 'month'})
       ba_hourly_power['year-mo'] = ba_hourly_power[['year', 'month']].astype(str).agg('-'.join, axis=1)
 
-      tmp = eia860m_long[(eia860m_long['balancing authority code'] == this_ba) & (eia860m_long['resource'] == res)].groupby(
+      tmp = eia860m_long[(eia860m_long['balancing authority code'] == this_ba) &
+                         (eia860m_long['resource'] == res)].groupby(
           ['year', 'month'])['nameplate capacity (mw)'].sum().reset_index()
       tmp['year-mo'] = tmp[['year', 'month']].astype(str).agg('-'.join, axis=1)
 
@@ -127,8 +128,8 @@ def plot_whiskers(dd, freq, res, comp, plotdir, thesecols, region, agg, ymax, sa
   if freq == 'Seasonal':
     dd = dd.groupby([dd.index.year, dd.index.month]).sum()
     dd.index.set_names(['Year', 'Month'], inplace=True)
-    xaxis = [calendar.month_name[i] for i in sorted(dd.index.get_level_values('Month').drop_duplicates())]
-    rotate = 45
+    xaxis = [calendar.month_name[i][0:3] for i in sorted(dd.index.get_level_values('Month').drop_duplicates())]
+    rotate = 0
     grouping = 'Month'
     grp_unit = ''
   elif freq == 'Diurnal':
@@ -163,8 +164,8 @@ def plot_whiskers(dd, freq, res, comp, plotdir, thesecols, region, agg, ymax, sa
                    data=dd,
                    hue='dataset')
   #  order=['January','February','March','May','June','July','August','September','October','November','December'])
-  ax.yaxis.grid(True, linestyle='-', which='major', color='lightgrey',
-                alpha=0.5)
+  # ax.yaxis.grid(True, linestyle='-', which='major', color='lightgrey',
+  #               alpha=0.5)
   ax.set(
       axisbelow=True)
   width = 0.15
@@ -172,14 +173,15 @@ def plot_whiskers(dd, freq, res, comp, plotdir, thesecols, region, agg, ymax, sa
   ax.set_ylabel('Capacity Factor', fontsize=16)
   ax.set_xlabel(grouping+grp_unit, fontsize=16)
   # print(region)
-  ax.set_title(region.upper()+' '+'Capacity Factor'+' '+res.capitalize(), fontsize=18)
+  region_name = 'ERCOT' if region == 'ERCO' else region
+  ax.set_title(region_name.upper()+' '+'Capacity Factor'+' '+res.capitalize(), fontsize=18)
   ax.set_xticks(x + width, xaxis)
   ax.set_xticklabels(xaxis, rotation=rotate, fontsize=14)
   ax.set_ylim([0, ymax])
   ax.tick_params(axis='y', labelsize=14)
   ax.legend(loc='upper left', fontsize=14)
-  ax.yaxis.grid(True, linestyle='-', which='major', color='lightgrey',
-                alpha=0.5)
+  # ax.yaxis.grid(True, linestyle='-', which='major', color='lightgrey',
+  #               alpha=0.5)
   plt.tight_layout()
   handles, _ = ax.get_legend_handles_labels()
   ax.legend(handles=handles, labels=bias_label)
@@ -228,12 +230,13 @@ def plot_grouped_box(
       if season_disagg == True:
         for season, sname in zip(seasons, season_names):
           dd_plot = dd[dd.index.month.isin(season)]
+          ba_name = 'ERCOT' if BA == 'ERCO' else BA
           plot_whiskers(dd_plot, freq, res, comp, plotdir, thesecols,
-                        BA+' '+sname, 'balevel_'+sname, ymax, savef, showf)
+                        ba_name+' '+sname, 'balevel_'+sname, ymax, savef, showf)
       else:
         plot_whiskers(dd, freq, res, comp, plotdir, thesecols, BA, 'balevel', ymax, savef, showf)
   elif aggregation == 'by NERC region':
-    ymax = 0.8  # sets ylim for box and whisker plots
+    ymax = 0.5  # sets ylim for box and whisker plots
     for bas_in_nerc, nerc_name in zip([wecc, eic, erco], nerc_zones):
       plot_bas = [i for i in bas_in_nerc if i in balist]
       nerc_wide = pd.DataFrame(columns=['GODEEEP-'+res]+comp+['nameplate capacity (mw)'], index=pd.date_range(
@@ -273,9 +276,14 @@ def plot_grouped_bars(
       os.makedirs(plotdir)
   if freq == 'Y':
     idx = list(range(2007, 2021))+['mean']
-  stats_df = pd.DataFrame(columns=pd.MultiIndex.from_product(
-      [balist, comparison_datasets]), index=idx, dtype=pd.Int64Dtype())
+  comparison_datasets_orig = comparison_datasets
   for BA in balist:
+    comparison_datasets = comparison_datasets_orig
+    # dont include scada column if it doesnt exist
+    if not 'scada' in all_power_hourly[res][BA].columns:
+      comparison_datasets = [x for x in comparison_datasets if not x == 'scada']
+    stats_df = pd.DataFrame(columns=pd.MultiIndex.from_product(
+        [balist, comparison_datasets]), index=idx, dtype=pd.Int64Dtype())
     dd = all_power_hourly[res][BA].copy(deep=True)[['GODEEEP-'+res]+comparison_datasets]
     thesecols = dd.columns.tolist()
     dd = dd[(dd.index.year > 2006) & (dd.index.year < 2021)]
@@ -315,8 +323,8 @@ def plot_grouped_bars(
       bias.loc['mean'] = bias.mean().astype(int)
       bias = bias.round(0).apply(lambda x: [str(i).rstrip('0').rstrip('.') for i in x])
       add_yrs = len([i for i in list(range(2007, 2021)) if i not in plotdd.index.year])
-      yrs_idx = pd.date_range(start='12/31/2007', periods=add_yrs, freq='Y',
-                              unit='s')  # .values#.astype('datetime64[s]')
+      yrs_idx = pd.date_range(start='12/31/2007', periods=add_yrs, freq='Y')
+      # unit='s')  # .values#.astype('datetime64[s]')
       add_rows = pd.DataFrame(columns=plotdd.columns.tolist(), index=yrs_idx)
       plotdd = pd.concat([add_rows, plotdd])
       plotdd.index = pd.to_datetime(plotdd.index, utc=True)
@@ -344,21 +352,22 @@ def plot_grouped_bars(
     x = np.arange(len(xaxis))
     width = 0.15
     multiplier = 0
-    fig, ax = plt.subplots(figsize=(yfig, 6))
+    fig, ax = plt.subplots(figsize=(yfig, 5))
     for dataset, cf in ddict.items():
       offset = width*multiplier
       rects = ax.bar(x + offset, cf, width, label=bias_dict[dataset])
       multiplier += 1
     ax.set_ylabel(ylab+energyunit, fontsize=16)
-    ax.set_title(BA+' '+ylab+' '+res.capitalize(), fontsize=18)
+    ba_name = 'ERCOT' if BA == 'ERCO' else BA
+    ba_name = 'ISONE' if ba_name == 'ISNE' else ba_name
+    ax.set_title(ba_name+' '+ylab+' '+res.capitalize(), fontsize=18)
     ax.set_xticks(x + width, xaxis)
     ax.set_xticklabels(xaxis, rotation=45, fontsize=14)
     if compute_cf:
       ax.set_ylim([0, 0.85])
     ax.tick_params(axis='y', labelsize=14)
     ax.legend(loc='upper left', fontsize=14)
-    ax.yaxis.grid(True, linestyle='-', which='major', color='lightgrey',
-                  alpha=0.5)
+    # ax.yaxis.grid(True, linestyle='-', which='major', color='lightgrey', alpha=0.5)
     plt.tight_layout()
     if savef:
       plt.savefig(plotdir+r'/'+BA+'_'+freq+'_'+res+'_'+cf_fig+'.png')
@@ -661,7 +670,7 @@ def calc_r(g, _, res, comp):
 def calc_diff(thisgroup, summarize, comp, res):
   # average pct diff across the frequency interval
   if summarize == 'pct':
-    diff = pd.Series(index=comp)
+    diff = pd.Series(index=comp, dtype='float64')
     for cc in comp:
       subset_group = thisgroup[['GODEEEP-'+res, cc]].dropna(axis=0)
       if (len(subset_group) > 0) and (subset_group[cc].sum() != 0):
