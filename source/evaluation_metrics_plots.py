@@ -173,7 +173,7 @@ def plot_whiskers(dd, freq, res, comp, plotdir, thesecols, region, agg, ymax, sa
   ax.set_ylabel('Capacity Factor', fontsize=16)
   ax.set_xlabel(grouping+grp_unit, fontsize=16)
   # print(region)
-  region_name = 'ERCOT' if region == 'ERCO' else region
+  region_name = 'ERCOT' if region == 'ERCO' or region == 'erco' else region
   ax.set_title(region_name.upper()+' '+'Capacity Factor'+' '+res.capitalize(), fontsize=18)
   ax.set_xticks(x + width, xaxis)
   ax.set_xticklabels(xaxis, rotation=rotate, fontsize=14)
@@ -354,8 +354,9 @@ def plot_grouped_bars(
     multiplier = 0
     fig, ax = plt.subplots(figsize=(yfig, 5))
     for dataset, cf in ddict.items():
-      offset = width*multiplier
-      rects = ax.bar(x + offset, cf, width, label=bias_dict[dataset])
+      # offset = width*multiplier
+      # rects = ax.bar(x + offset, cf, width, label=bias_dict[dataset])
+      ax.plot(x, cf, '-o', label=bias_dict[dataset], linewidth=3)
       multiplier += 1
     ax.set_ylabel(ylab+energyunit, fontsize=16)
     ba_name = 'ERCOT' if BA == 'ERCO' else BA
